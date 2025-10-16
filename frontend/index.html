@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sasya Yojana — AI Land-Use Planner</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ---------- ORIGINAL STYLES (kept) ---------- */
+body{font-family:Arial,Helvetica,sans-serif;padding:16px;margin:0}
+.container{display:flex;gap:12px;align-items:flex-start}
+.left{flex:1;min-width:420px}
+.inspector {
+  width:340px;
+  max-width:40%;
+  background:#fff;
+  border-left:1px solid #eee;
+  box-shadow:-6px 0 16px rgba(0,0,0,0.04);
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  transform:translateX(110%);
+  transition:transform 260ms ease;
+  position:fixed;
+  right:0;
+  top:16px;
+  bottom:16px;
+  z-index:90;
+  overflow:auto;
+  border-radius:8px 0 0 8px;
+}
+.inspector.open{transform:translateX(0);}
+main{max-width:1200px;margin:0 auto;padding:16px}
+label{display:block;margin:8px 0}
+input,select{padding:8px;width:100%;max-width:320px}
+button{background:#2e7d32;color:white;padding:8px 12px;border:none;border-radius:6px;cursor:pointer;margin-top:8px}
+button:disabled{opacity:0.5;cursor:not-allowed}
+#svgwrap{margin-top:12px;border:1px solid #eee;padding:8px;background:#fafafa;min-height:260px}
+.controls{display:flex;gap:6px;align-items:center}
+.map-tooltip {position:absolute;pointer-events:none;background:rgba(0,0,0,0.75);color:white;padding:6px 8px;border-radius:4px;font-size:13px;display:none;z-index:50;}
+.map-legend {display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap;}
+.legend-item {display:flex;gap:6px;align-items:center;font-size:13px;}
+.legend-color {width:18px;height:18px;border-radius:3px;border:1px solid #ccc;}
+ul{padding-left:18px} li{margin-bottom:8px}
+.result-card{background:#fff;padding:12px;border-radius:8px;border:1px solid #eee}
+
+/* ---------- DARK THEME + ALIGNMENT FIX (ADDED) ---------- */
+:root{
+  --bg-1: #0b0f10;
+  --panel: rgba(255,255,255,0.03);
+  --muted: #9bb59b;
+  --accent: #4caf50;
+  --accent-2: #7bd389;
+  --card-glass: rgba(255,255,255,0.03);
+  --glass-border: rgba(255,255,255,0.06);
+  --text: #e6f7e6;
+}
+html,body{height:100%;font-family:"Poppins", Arial, Helvetica, sans-serif;background:var(--bg-1);color:var(--text)}
+body::before{
+  content:"";
+  position:fixed;inset:0;
+  background: radial-gradient(circle at 10% 10%, rgba(76,175,80,0.07), transparent 8%),
+              radial-gradient(circle at 85% 80%, rgba(30,136,229,0.04), transparent 12%);
+  z-index:0;pointer-events:none;
+}
+main{
+  position:relative;z-index:2;
+  max-width:1200px;margin:28px auto;padding:20px;border-radius:14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border:1px solid var(--glass-border);box-shadow:0 18px 50px rgba(0,0,0,0.6);
+}
+h2{color:var(--accent-2);margin:0 0 6px 0;font-weight:700}
+.controls select{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.04);padding:8px;border-radius:8px}
+
+/* Left column inputs alignment */
+.left label{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  color:var(--muted);font-weight:600;
+}
+.left label input,
+.left label select{
+  flex:1 1 auto;
+  max-width:60%;
+  background:transparent;
+  color:var(--text);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:8px;
+  padding:8px;
+  box-sizing:border-box;
+}
+.left label input:focus,
+.left label select:focus{
+  outline:none;border-color:var(--accent);
+  box-shadow:0 6px 20px rgba(76,175,80,0.06);
+}
+
+/* action buttons row */
+div[style*="margin-top:10px"]{
+  display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px;
+}
+button{background:var(--accent);font-weight:700;border-radius:10px;padding:10px 14px;box-shadow:0 10px 30px rgba(76,175,80,0.08)}
+button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.04);box-shadow:none;color:var(--text)}
+button.ghost{background:transparent;border:1px dashed rgba(255,255,255,0.04)}
+
+/* result and svgwrap dark card */
+#result{display:none;margin-top:14px}
+#result .result-card,
+#result{
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border:1px solid rgba(255,255,255,0.04);
+  color:var(--text);
+  border-radius:12px;padding:14px;
+}
+#result h3,#result h4{color:var(--accent-2)}
+#svgwrap{
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius:10px;border:1px solid rgba(255,255,255,0.04);
+  padding:10px;margin-top:12px;min-height:200px;color:var(--text);
+}
+
+/* inspector tweaks */
+.inspector{
+  background:linear-gradient(180deg,#0b0f10,#111418)!important;color:var(--text)!important;border-left:1px solid rgba(255,255,255,0.03);
+  box-shadow:-6px 16px 60px rgba(0,0,0,0.6);
+}
+.map-tooltip{background:rgba(0,0,0,0.9);color:var(--text);border:1px solid rgba(76,175,80,0.12)}
+.legend-color{border:1px solid rgba(255,255,255,0.04)}
+ul{padding-left:18px}
+li{margin-bottom:8px;color:rgba(230,247,230,0.9)}
+
+/* responsive */
+@media(max-width:880px){.container{flex-direction:column}.left label{flex-direction:column;align-items:stretch}}
+</style>
+</head>
+<body>
+<main>
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <h2 id="title">Sasya Yojana — AI Land-Use Planner</h2>
+      <div style="color:rgba(155,181,155,0.9);font-size:13px;margin-top:6px">Sustainable multi-cropping, agroforestry & economics</div>
+    </div>
+    <div class="controls">
+      <select id="langToggle"><option value="en">English</option><option value="hi">हिंदी</option><option value="kn">ಕನ್ನಡ</option><option value="mr">मराठी</option></select>
+    </div>
+  </div>
+
+  <div class="container" style="margin-top:12px">
+    <div class="left">
+      <label>Farmer name: <input id="name" value="Demo Farmer"></label>
+      <label>Area (m²): <input id="area" value="8000"></label>
+      <label>Rainfall (mm): <input id="rain" value="400"></label>
+      <label>Soil pH: <input id="ph" value="6.5"></label>
+      <label>Investment:
+        <select id="invest"><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+      </label>
+
+      <div style="margin-top:10px">
+        <button id="generate">Generate Plan</button>
+        <button id="readPlan" disabled>🔊 Read Plan</button>
+        <button id="savePlan" disabled class="secondary">Save</button>
+        <button id="downloadJSON" disabled class="secondary">JSON</button>
+        <button id="downloadSVG" disabled class="secondary">SVG</button>
+        <button id="downloadPDF" disabled class="secondary">🖨️ PDF</button>
+      </div>
+
+      <div id="result" style="margin-top:12px;display:none"></div>
+      <div id="svgwrap" style="margin-top:12px;display:none"></div>
+    </div>
+
+    <aside id="inspector" class="inspector" aria-hidden="true">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 id="inspector-title">Cell details</h3>
+        <div>
+          <button id="closeInspector" style="background:#999;padding:6px 8px;border-radius:6px">Close</button>
+        </div>
+      </div>
+      <div id="inspector-body" style="margin-top:8px">
+        <p class="gray">Select a cell on the map to see details.</p>
+      </div>
+      <div style="margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,0.03)">
+        <small class="gray">Inspector shows per-cell info & species economics (year-1).</small>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<!-- FULL JAVASCRIPT BELOW (UNCHANGED LOGIC; small finishing of truncated readPlan handler) -->
+<script>
+const langData={ en:{planFor:"Plan for",recommended:"Recommended System",tree:"Boundary Tree",primary:"Primary Crop",inter:"Intercrop",
+     econ:"Estimated Year-1 Economics",rev:"Revenue",cost:"Cost",net:"Net",action:"Action Plan",
+     steps:[ (t,s)=>`Plant ${t} around field (~${s} m apart).`, "Prepare land with compost or manure.", (p,i)=>`Sow ${p} with ${i} in alternate rows.`, "Mulch and irrigate during dry spells.", "Use natural pest repellents; avoid chemicals.", "Harvest and record yields for next season AI." ]},
+ hi:{planFor:"योजना – ",recommended:"अनुशंसित प्रणाली",tree:"सीमांत वृक्ष",primary:"मुख्य फसल",inter:"अन्तर फसल",
+     econ:"अनुमानित वर्ष-1 अर्थशास्त्र",rev:"राजस्व",cost:"लागत",net:"शुद्ध",action:"कार्रवाई योजना",
+     steps:[ (t,s)=>`${t} को ~${s} मी दूरी पर लगाएँ।`, "मिट्टी को खाद से तैयार करें।", (p,i)=>`${p} के साथ ${i} की अंतर बुवाई करें।`, "मल्च करें और सूखे में सिंचाई करें।", "प्राकृतिक कीट निरोधक का उपयोग करें।", "कटाई करें और उपज रिकॉर्ड करें।" ]},
+};
+let lang='en';
+const rupee=x=>'₹'+Number(x||0).toLocaleString('en-IN');
+
+document.getElementById('generate').onclick=async()=>{
+ try{
+  const payload={
+    name:document.getElementById('name').value,
+    area_m2:+document.getElementById('area').value,
+    rainfall_mm:+document.getElementById('rain').value,
+    soil_ph:+document.getElementById('ph').value,
+    investment_level:document.getElementById('invest').value
+  };
+  const res=await fetch('/api/generate_plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const data=await res.json();
+  if(!data||data.status!=='ok'){alert('Server error');return;}
+  window.latestPlan=data;
+  render(data);
+  ['savePlan','downloadJSON','downloadSVG','downloadPDF','readPlan'].forEach(id=>document.getElementById(id).disabled=false);
+ }catch(e){alert(e.message);}
+};
+
+function render(d){
+ const t=langData[lang]||langData.en;
+ const p=d.primary_crop||{}, i=d.intercrop||{}, tr=d.boundary_tree||{}, e=d.economics||{}, inp=d.input||{};
+ const r=document.getElementById('result');
+ r.style.display='block';
+ let html=`<div class="result-card"><h3>🌾 ${t.planFor} <b>${inp.name}</b></h3>
+ <p><b>${t.tree}:</b> ${tr.name||'—'} | <b>${t.primary}:</b> ${p.name||'—'} | <b>${t.inter}:</b> ${i.name||'—'}</p>
+ <h4>${t.econ}</h4>
+ <p>${t.rev}: ${rupee(e.total_revenue)} | ${t.cost}: ${rupee(e.total_cost)} | ${t.net}: ${rupee(e.total_net)}</p>
+ <h4>${t.action}</h4><ol>`;
+ t.steps.forEach((s)=>{ html+=`<li>${typeof s==='function'?s(tr.name||t.tree,tr.spacing_m||'?') : s}</li>`; });
+ html+='</ol></div>';
+ r.innerHTML=html;
+ renderInteractiveMap(d);
+ closeInspector();
+}
+
+function renderInteractiveMap(d){
+  d3.select("#svgmapcontainer").remove();
+  const wrap = d3.select("#svgwrap").style("display","block");
+  const container = wrap.append("div").attr("id","svgmapcontainer").style("position","relative");
+  let tooltip = d3.select("body").selectAll(".map-tooltip").data([1]);
+  tooltip = tooltip.enter().append("div").attr("class","map-tooltip").merge(tooltip);
+  const cells = d.layout.cells||[], cols=d.layout.cols||10, rows=d.layout.rows||6, cellSize=d.layout.cell_size_m||4;
+  const px = 4.5 * cellSize, width = cols*px, height = rows*px;
+  const colorFor = (cell)=> cell.type==='tree' ? "#2e7d32" : (cell.species===d.primary_crop.name ? "#FFD54F" : "#64B5F6");
+
+  const svg = container.append("svg")
+    .attr("width", Math.min(width,900))
+    .attr("height", Math.min(height,600))
+    .attr("viewBox", `0 0 ${width} ${height}`)
+    .style("border","1px solid rgba(255,255,255,0.04)")
+    .style("background","linear-gradient(#2b2b2b,#212121)")
+    .call(d3.zoom().scaleExtent([0.5,6]).on("zoom",(ev)=>{ g.attr("transform", ev.transform); }));
+
+  const g = svg.append("g");
+  for(let r=0;r<rows;r++){for(let c=0;c<cols;c++){g.append("rect").attr("x", c*px).attr("y", r*px).attr("width", px).attr("height", px).attr("fill","transparent").attr("stroke","rgba(255,255,255,0.02)");}}
+  const cellG = g.selectAll("g.cell").data(cells, d=>d.cell_id||(`${d.r}_${d.c}`)).join("g").attr("class","cell").attr("transform", d=>`translate(${d.c*px},${d.r*px})`).style("cursor","pointer");
+  cellG.filter(d=>d.type!=='tree').append("rect").attr("width", px-2).attr("height", px-2).attr("rx",3).attr("ry",3).attr("x",1).attr("y",1).attr("fill", d=>colorFor(d)).attr("stroke","#999").attr("stroke-width",0.5);
+  cellG.filter(d=>d.type==='tree').append("circle").attr("cx", px/2).attr("cy", px/2).attr("r", Math.max(6, px*0.28)).attr("fill","#1b5e20").attr("stroke","#083d14");
+  cellG.append("text").attr("x", 6).attr("y", Math.min(14, px-6)).text(d => (d.species||'').slice(0,12)).attr("font-size", Math.max(8, px*0.18)).attr("fill","#fff");
+
+  cellG.on("mouseover", function(event, d){tooltip.style("display","block").html(`<b>${d.species}</b><br/>Type: ${d.type}<br/>Cell: ${d.r},${d.c}`).style("left",(event.pageX+10)+"px").style("top",(event.pageY+10)+"px");d3.select(this).selectAll("rect,circle").attr("opacity",0.85).attr("stroke-width",1.2);})
+    .on("mousemove",(event)=>{tooltip.style("left",(event.pageX+10)+"px").style("top",(event.pageY+10)+"px");})
+    .on("mouseout", function(){tooltip.style("display","none");d3.select(this).selectAll("rect,circle").attr("opacity",1).attr("stroke-width",0.6);})
+    .on("click", (event, d) => {openInspectorForCell(d, window.latestPlan);});
+
+  const legend = container.append("div").attr("class","map-legend");
+  legend.append("div").attr("class","legend-item").html(`<div class="legend-color" style="background:#2e7d32"></div>Trees`);
+  legend.append("div").attr("class","legend-item").html(`<div class="legend-color" style="background:#FFD54F"></div>${d.primary_crop.name}`);
+  legend.append("div").attr("class","legend-item").html(`<div class="legend-color" style="background:#64B5F6"></div>${d.intercrop.name}`);
+}
+
+const inspector=document.getElementById('inspector');
+const inspectorBody=document.getElementById('inspector-body');
+document.getElementById('closeInspector').onclick=closeInspector;
+function openInspectorForCell(cell,plan){
+  const species=cell.species||'—';const type=cell.type||'—';
+  const econ=(plan&&plan.economics&&plan.economics.by_species&&plan.economics.by_species[species])?plan.economics.by_species[species]:null;
+  let html=`<h4>${species} (${type})</h4>`;
+  if(econ){html+=`<p>Yield:${econ.yield_kg||'—'} kg<br>Revenue:${rupee(econ.revenue)}<br>Cost:${rupee(econ.cost)}<br>Net:${rupee(econ.net)}</p>`;}
+  else{html+='<p>No economic data</p>';}
+  inspectorBody.innerHTML=html;openInspector();
+}
+function openInspector(){inspector.classList.add('open');}
+function closeInspector(){inspector.classList.remove('open');}
+document.getElementById('langToggle').addEventListener('change',e=>{lang=e.target.value;if(window.latestPlan)render(window.latestPlan);});
+document.getElementById('readPlan').onclick = ()=> {
+  if(!window.latestPlan) return;
+  const t = langData[lang] || langData.en;
+  const plan = window.latestPlan;
+  const p = plan.primary_crop, i = plan.intercrop, tr = plan.boundary_tree;
+  let text = `${t.planFor} ${plan.input.name}. `;
+  // finish building speech: iterate steps and stringify function steps
+  t.steps.forEach(s => {
+    text += (typeof s === 'function' ? s(tr.name, tr.spacing_m) : s) + '. ';
+  });
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = (lang === 'hi' ? 'hi-IN' : 'en-IN');
+  speechSynthesis.speak(u);
+};
+
+// save / downloads remain same as before
+document.getElementById('savePlan').onclick=async()=>{
+ if(!window.latestPlan)return;
+ const res=await fetch('/api/save_plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({farmer_name:window.latestPlan.input.name,plan:window.latestPlan})});
+ const j=await res.json(); alert(j.status==='ok'?'Saved id '+j.plan_id:'Failed');
+};
+document.getElementById('downloadJSON').onclick=()=>{ if(!window.latestPlan) return; const b=new Blob([JSON.stringify(window.latestPlan,null,2)],{type:"application/json"}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='plan.json'; a.click(); };
+document.getElementById('downloadSVG').onclick=()=>{ const svg=document.querySelector('#svgmapcontainer svg'); if(!svg) return; const b=new Blob([new XMLSerializer().serializeToString(svg)],{type:"image/svg+xml"}); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='layout_map.svg'; a.click(); };
+document.getElementById('downloadPDF').onclick=async()=>{ if(!window.latestPlan) return; const res=await fetch('/api/pdf_plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(window.latestPlan)}); const blob=await res.blob(); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='SasyaPlan.pdf'; a.click(); };
+
+</script>
+</body>
+</html>

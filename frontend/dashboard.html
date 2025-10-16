@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sasya Yojana — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --accent:#4caf50;
+  --accent2:#81c784;
+  --bg:#0b0f10;
+  --card:#111418;
+  --text:#e8f5e9;
+  --muted:#98a998;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:"Poppins",sans-serif;
+  background:linear-gradient(180deg,#071012 0%, #0e1412 45%, #071012 100%);
+  color:var(--text);
+  min-height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  position:relative;
+}
+
+/* animated canvas behind content */
+#bgCanvas{
+  position:fixed; inset:0; z-index:0;
+  background: radial-gradient(ellipse at 10% 10%, rgba(40,80,40,0.08), transparent 12%),
+              radial-gradient(ellipse at 90% 80%, rgba(10,40,80,0.06), transparent 18%);
+}
+
+/* glass card */
+.container{
+  position:relative;
+  z-index:5;
+  max-width:860px;
+  width:92%;
+  margin:24px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+  border:1px solid rgba(255,255,255,0.04);
+  border-radius:16px;
+  padding:28px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px) saturate(1.05);
+  display:flex;
+  gap:24px;
+  align-items:flex-start;
+  color:var(--text);
+}
+
+/* left column */
+.left{
+  flex:1;
+  min-width:320px;
+}
+
+/* right column (callout) */
+.right{
+  width:320px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border:1px solid rgba(255,255,255,0.03);
+  padding:18px;border-radius:12px;
+}
+
+/* header/title */
+.title{
+  margin-bottom:8px;
+}
+h1{font-size:28px;color:var(--accent2);margin:0 0 6px 0}
+.kannada{font-family:"Noto Sans Kannada",sans-serif;color:#bff1c2;margin-bottom:6px;font-size:16px}
+.subtitle{color:var(--muted);font-size:14px;margin-bottom:16px}
+
+/* form */
+label{display:block;color:var(--muted);font-size:13px;margin-bottom:6px}
+input, select{
+  width:100%;
+  padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);
+  background:rgba(0,0,0,0.25);color:var(--text);outline:none;font-size:14px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.02)
+}
+.row{display:flex;gap:12px}
+.small{font-size:13px;color:var(--muted);margin-top:10px}
+
+/* actions */
+.actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+button{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer;box-shadow:0 10px 30px rgba(76,175,80,0.16)}
+button.secondary{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text);box-shadow:none}
+button:disabled{opacity:0.5;cursor:not-allowed;box-shadow:none}
+
+/* legend */
+.legend{display:flex;gap:10px;align-items:center;margin-top:14px}
+.chip{display:flex;gap:8px;align-items:center;padding:6px 8px;border-radius:999px;background:rgba(255,255,255,0.02);font-size:13px}
+.dot{width:12px;height:12px;border-radius:3px}
+
+/* right panel content */
+.callout-title{font-weight:700;margin-bottom:8px;color:var(--accent2)}
+.callout p{color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:12px}
+.footer{margin-top:18px;color:rgba(255,255,255,0.35);font-size:13px;text-align:center}
+
+/* responsive */
+@media(max-width:920px){
+  .container{flex-direction:column;align-items:stretch}
+  .right{width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- animated background canvas -->
+<canvas id="bgCanvas"></canvas>
+
+<!-- main dashboard card -->
+<div class="container" role="main" aria-labelledby="title">
+  <div class="left">
+    <div class="title">
+      <h1>🌿 Sasya Yojana</h1>
+      <div class="kannada">ಸಸ್ಯ ಯೋಜನೆ — ಬುದ್ಧಿವಂತ ಕೃಷಿ ಭೂ ಬಳಕೆ ವ್ಯವಸ್ಥೆ</div>
+      <div class="subtitle">AI Land-Use Planner & Crop Recommendation System</div>
+    </div>
+
+    <!-- input snippet (link to index.html when user wants to open planner) -->
+    <label>Quick preview — open full planner:</label>
+    <div class="row" style="align-items:center">
+      <input id="dashName" value="Demo Farmer" />
+      <select id="dashLang" style="width:160px">
+        <option value="en">English</option>
+        <option value="hi">हिंदी</option>
+      </select>
+    </div>
+
+    <div class="small">Click the button to go to the recommendation dashboard (keeps your design & logic intact).</div>
+
+    <div class="actions">
+      <button id="gotoPlanner">🚜 Go to Recommendation Page</button>
+      <button id="openIndex" class="secondary" onclick="window.location.href='index.html'">Open Index (existing)</button>
+    </div>
+
+    <div class="legend" aria-hidden="true">
+      <div class="chip"><div class="dot" style="background:#2e7d32"></div> Trees</div>
+      <div class="chip"><div class="dot" style="background:#FFD54F"></div> Primary crop</div>
+      <div class="chip"><div class="dot" style="background:#64B5F6"></div> Intercrop</div>
+    </div>
+
+    <div class="small" style="margin-top:18px">Tip: On the recommendation page you can generate a plan, view layout, and download PDF/CSV for farmers.</div>
+  </div>
+
+  <aside class="right" aria-label="About">
+    <div class="callout">
+      <div class="callout-title">Why Sasya Yojana?</div>
+      <p>Helps marginal rainfed farmers by combining multi-cropping and agroforestry — increasing resilience, improving soil, and diversifying income streams with AI-backed recommendations.</p>
+
+      <div style="display:flex;gap:8px;flex-direction:column">
+        <div><strong>AI Agent:</strong> Suggests primary & intercrops based on rainfall, soil pH and investment.</div>
+        <div><strong>Visualization:</strong> Interactive layout and per-cell economics for clear farmer action.</div>
+        <div><strong>Exports:</strong> Download plan as JSON / SVG / PDF for field use.</div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <button id="previewPlan" class="secondary" disabled>Live preview (coming)</button>
+    </div>
+
+    <div class="footer">© 2025 Sasya Yojana — Empowering Farmers through AI</div>
+  </aside>
+</div>
+
+<script>
+/* ============================
+   Animated background particles
+   ============================ */
+
+const canvas = document.getElementById('bgCanvas');
+const ctx = canvas.getContext('2d');
+let w = canvas.width = window.innerWidth;
+let h = canvas.height = window.innerHeight;
+
+window.addEventListener('resize', () => {
+  w = canvas.width = window.innerWidth;
+  h = canvas.height = window.innerHeight;
+  initParticles();
+});
+
+const particles = [];
+const LEAF_PATH = [
+  // simple leaf-like bezier control points (normalized)
+  {x:0.05,y:0.5},{x:0.3,y:0.15},{x:0.7,y:0.1},{x:0.95,y:0.4},
+  {x:0.7,y:0.75},{x:0.3,y:0.85}
+];
+
+function rand(min,max){ return Math.random()*(max-min)+min; }
+
+function createParticle(i){
+  const size = rand(8,26);
+  const t = Math.random();
+  const leaf = Math.random() < 0.22; // ~22% are leaf icons
+  return {
+    id:i,
+    x: rand(0,w),
+    y: rand(-h, h),
+    vx: rand(-0.15,0.15),
+    vy: rand(0.15, 0.7),
+    size,
+    alpha: rand(0.15, 0.9),
+    rotation: rand(0, Math.PI*2),
+    rotSpeed: rand(-0.01, 0.01),
+    leaf
+  };
+}
+
+function initParticles(count = Math.round((w*h)/60000) * 18){
+  particles.length = 0;
+  const n = Math.max(24, count);
+  for(let i=0;i<n;i++) particles.push(createParticle(i));
+}
+initParticles();
+
+function drawLeaf(x,y,size,alpha,rot){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(rot);
+  ctx.scale(size/60, size/60);
+  ctx.globalAlpha = alpha;
+  // leaf fill
+  ctx.beginPath();
+  ctx.moveTo(LEAF_PATH[0].x*100, LEAF_PATH[0].y*100);
+  for(let i=1;i<LEAF_PATH.length;i++){
+    ctx.quadraticCurveTo(
+      LEAF_PATH[i-1].x*100, LEAF_PATH[i-1].y*100,
+      LEAF_PATH[i].x*100, LEAF_PATH[i].y*100
+    );
+  }
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(145, 197, 117, 0.95)';
+  ctx.fill();
+  // central vein
+  ctx.beginPath();
+  ctx.moveTo(50,10);
+  ctx.lineTo(50,90);
+  ctx.strokeStyle = 'rgba(55, 95, 35, 0.25)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function animate(){
+  ctx.clearRect(0,0,w,h);
+
+  // faint vignette
+  const g = ctx.createLinearGradient(0,0,0,h);
+  g.addColorStop(0, 'rgba(255,255,255,0.02)');
+  g.addColorStop(0.6, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,w,h);
+
+  for(let p of particles){
+    p.x += p.vx;
+    p.y += p.vy;
+    p.rotation += p.rotSpeed;
+
+    // recycle when off screen
+    if(p.y > h + 60 || p.x < -80 || p.x > w + 80){
+      Object.assign(p, createParticle(p.id));
+      p.y = -40;
+    }
+
+    if(p.leaf){
+      drawLeaf(p.x, p.y, p.size, p.alpha*0.95, p.rotation);
+    } else {
+      // circle particle
+      ctx.beginPath();
+      ctx.globalAlpha = p.alpha * 0.9;
+      ctx.fillStyle = (Math.random() > 0.6) ? 'rgba(255,255,255,0.06)' : 'rgba(150,200,130,0.07)';
+      ctx.arc(p.x, p.y, p.size*0.5, 0, Math.PI*2);
+      ctx.fill();
+      // subtle stroke
+      ctx.globalAlpha = 0.08;
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  requestAnimationFrame(animate);
+}
+animate();
+
+/* ============================
+   Dashboard button behavior
+   ============================ */
+document.getElementById('gotoPlanner').addEventListener('click', ()=>{
+  // pass chosen name/lang via query string (index.html can read if you choose to)
+  const name = encodeURIComponent(document.getElementById('dashName').value || '');
+  const lang = encodeURIComponent(document.getElementById('dashLang').value || 'en');
+  // open index.html with parameters (index.html currently reads DOM inputs so this is optional)
+  window.location.href = `index.html?name=${name}&lang=${lang}`;
+});
+
+/* keep canvas & interactive purely decorative — no changes to your project logic */
+</script>
+</body>
+</html>
